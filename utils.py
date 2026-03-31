@@ -370,10 +370,51 @@ def check_minimal_cover(original_fds, candidate_fds, attributes=None) -> dict:
 
 
 
-def is_compact_minimal_cover(original_fds, candidate_fds, attributes=None) -> bool:
-    """Return True iff candidate_fds is a compact minimal cover of original_fds."""
-    result = check_minimal_cover(original_fds, candidate_fds, attributes=attributes)
-    return result["is_minimal_cover"] and result["is_compact"]
+def is_compact_minimal_cover(attributes, fds, fds_star) -> bool:
+    """
+    Check whether fds_star is a compact minimal cover of fds over 'attributes'.
+
+    Definition used:
+    1. fds_star is equivalent to fds
+    2. No FD in fds_star is redundant
+    3. No attribute on the LHS of any FD in fds_star is superfluous
+
+    Notes:
+    - RHS need not be singleton
+    - Input/output style matches the rest of this file:
+      fds = [(set(...), set(...)), ...]
+    """
+
+    # Step 0: sanity check — all attributes used must belong to the schema
+    attr_set = set(attributes)
+    for lhs, rhs in fds + fds_star:
+        if not set(lhs).issubset(attr_set) or not set(rhs).issubset(attr_set):
+            return False
+
+    # Step 1: check equivalence fds^+ = fds_star^+
+    # It is enough to check each FD in one set is implied by the other.
+    for lhs, rhs in fds:
+        if not rhs.issubset(compute_closure(lhs, fds_star)):
+            return False
+
+    for lhs, rhs in fds_star:
+        if not rhs.issubset(compute_closure(lhs, fds)):
+            return False
+
+    # Step 2: check no FD in fds_star is redundant
+    for i, (lhs, rhs) in enumerate(fds_star):
+        remaining_fds = fds_star[:i] + fds_star[i+1:]
+        if rhs.issubset(compute_closure(lhs, remaining_fds)):
+            return False
+
+    # Step 3: check no attribute on LHS is superfluous
+    for lhs, rhs in fds_star:
+        for a in lhs:
+            reduced_lhs = set(lhs) - {a}
+            if rhs.issubset(compute_closure(reduced_lhs, fds_star)):
+                return False
+
+    return True
 
 def _attr_bitmask(attrs, attr_to_bit):
     """Helper to build a bitmask from an iterable of attribute names."""

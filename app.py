@@ -204,7 +204,7 @@ with tab7:
         try:
             candidate_fds = parse_fds(candidate_text)
             result = check_minimal_cover(fds, candidate_fds, attributes=attributes)
-            compact_ok = is_compact_minimal_cover(fds, candidate_fds, attributes=attributes)
+            compact_ok = is_compact_minimal_cover(attributes, fds, candidate_fds)
 
             c1, c2 = st.columns(2)
             with c1:
