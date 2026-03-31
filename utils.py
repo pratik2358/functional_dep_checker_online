@@ -304,8 +304,11 @@ def check_minimal_cover(original_fds, candidate_fds, attributes=None) -> dict:
       2) no trivial dependencies,
       3) no extraneous LHS attributes,
       4) no redundant dependencies,
-      5) optional attribute-domain consistency,
-      6) whether the candidate is compact (unique LHS after merging).
+      5) optional attribute-domain consistency.
+
+    Compactness is reported separately and means:
+      - the candidate is already a minimal cover, and
+      - all FDs with the same LHS have been merged.
     """
     original_fds = [(set(lhs), set(rhs)) for lhs, rhs in original_fds]
     candidate_fds = [(set(lhs), set(rhs)) for lhs, rhs in candidate_fds]
@@ -359,10 +362,18 @@ def check_minimal_cover(original_fds, candidate_fds, attributes=None) -> dict:
     for lhs, rhs in candidate_fds:
         key = tuple(sorted(lhs))
         lhs_groups.setdefault(key, set()).update(rhs)
-    is_compact = len(lhs_groups) == len(candidate_fds)
+
+    is_minimal_cover = len(violations) == 0
+    has_merged_same_lhs = len(lhs_groups) == len(candidate_fds)
+    is_compact = is_minimal_cover and has_merged_same_lhs
+
+    if is_minimal_cover and not has_merged_same_lhs:
+        violations.append(
+            "The candidate is not compact: some dependencies with the same LHS are not merged."
+        )
 
     return {
-        "is_minimal_cover": len(violations) == 0,
+        "is_minimal_cover": is_minimal_cover,
         "is_compact": is_compact,
         "violations": violations,
         "merged_form": [(set(lhs), set(rhs)) for lhs, rhs in lhs_groups.items()],
@@ -374,45 +385,24 @@ def is_compact_minimal_cover(attributes, fds, fds_star) -> bool:
     """
     Check whether fds_star is a compact minimal cover of fds over 'attributes'.
 
-    Definition used:
-    1. fds_star is equivalent to fds
-    2. No FD in fds_star is redundant
-    3. No attribute on the LHS of any FD in fds_star is superfluous
+    Compactness here means:
+    1. fds_star is a minimal cover of fds, and
+    2. any dependencies in fds_star with the same LHS have already been merged.
 
     Notes:
-    - RHS need not be singleton
-    - Input/output style matches the rest of this file:
-      fds = [(set(...), set(...)), ...]
+    - RHS need not be singleton.
+    - If fds_star is not a minimal cover, it cannot be a compact minimal cover.
     """
+    result = check_minimal_cover(fds, fds_star, attributes=attributes)
+    if not result["is_minimal_cover"]:
+        return False
 
-    # Step 0: sanity check — all attributes used must belong to the schema
-    attr_set = set(attributes)
-    for lhs, rhs in fds + fds_star:
-        if not set(lhs).issubset(attr_set) or not set(rhs).issubset(attr_set):
+    lhs_seen = set()
+    for lhs, _rhs in fds_star:
+        key = tuple(sorted(lhs))
+        if key in lhs_seen:
             return False
-
-    # Step 1: check equivalence fds^+ = fds_star^+
-    # It is enough to check each FD in one set is implied by the other.
-    for lhs, rhs in fds:
-        if not rhs.issubset(compute_closure(lhs, fds_star)):
-            return False
-
-    for lhs, rhs in fds_star:
-        if not rhs.issubset(compute_closure(lhs, fds)):
-            return False
-
-    # Step 2: check no FD in fds_star is redundant
-    for i, (lhs, rhs) in enumerate(fds_star):
-        remaining_fds = fds_star[:i] + fds_star[i+1:]
-        if rhs.issubset(compute_closure(lhs, remaining_fds)):
-            return False
-
-    # Step 3: check no attribute on LHS is superfluous
-    for lhs, rhs in fds_star:
-        for a in lhs:
-            reduced_lhs = set(lhs) - {a}
-            if rhs.issubset(compute_closure(reduced_lhs, fds_star)):
-                return False
+        lhs_seen.add(key)
 
     return True
 
