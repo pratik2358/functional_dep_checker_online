@@ -269,6 +269,112 @@ def minimal_cover(fds, p = 0.5) -> list:
     
     return minimal_fds
 
+
+
+def implies_all(source_fds, target_fds) -> bool:
+    """Return True iff every FD in target_fds is implied by source_fds."""
+    for lhs, rhs in target_fds:
+        if not set(rhs).issubset(compute_closure(set(lhs), source_fds)):
+            return False
+    return True
+
+
+def equivalent_fd_sets(fds1, fds2) -> bool:
+    """Return True iff fds1 and fds2 are logically equivalent."""
+    return implies_all(fds1, fds2) and implies_all(fds2, fds1)
+
+
+def _has_extraneous_lhs_attr(lhs, rhs, fds) -> bool:
+    lhs = set(lhs)
+    rhs = set(rhs)
+    for a in list(lhs):
+        reduced_lhs = lhs - {a}
+        if rhs.issubset(compute_closure(reduced_lhs, fds)):
+            return True
+    return False
+
+
+def check_minimal_cover(original_fds, candidate_fds, attributes=None) -> dict:
+    """
+    Check whether candidate_fds is a minimal cover of original_fds.
+
+    This checker supports both singleton-RHS and compact covers.
+    It verifies:
+      1) logical equivalence,
+      2) no trivial dependencies,
+      3) no extraneous LHS attributes,
+      4) no redundant dependencies,
+      5) optional attribute-domain consistency,
+      6) whether the candidate is compact (unique LHS after merging).
+    """
+    original_fds = [(set(lhs), set(rhs)) for lhs, rhs in original_fds]
+    candidate_fds = [(set(lhs), set(rhs)) for lhs, rhs in candidate_fds]
+    attr_set = set(attributes) if attributes is not None else None
+
+    violations = []
+
+    if attr_set is not None:
+        for lhs, rhs in candidate_fds:
+            if not lhs.issubset(attr_set) or not rhs.issubset(attr_set):
+                violations.append(
+                    f"FD {lhs} -> {rhs} uses attributes outside the declared relation."
+                )
+
+    if not equivalent_fd_sets(original_fds, candidate_fds):
+        violations.append("The candidate FD set is not equivalent to the original FD set.")
+
+    trivial_fds = []
+    lhs_extraneous = []
+    redundant_fds = []
+
+    for idx, (lhs, rhs) in enumerate(candidate_fds):
+        if rhs.issubset(lhs):
+            trivial_fds.append((lhs, rhs))
+
+        if _has_extraneous_lhs_attr(lhs, rhs, candidate_fds):
+            lhs_extraneous.append((lhs, rhs))
+
+        remaining = candidate_fds[:idx] + candidate_fds[idx+1:]
+        if rhs.issubset(compute_closure(lhs, remaining)):
+            redundant_fds.append((lhs, rhs))
+
+    if trivial_fds:
+        violations.append(
+            "Trivial dependencies found: " + "; ".join(f"{lhs} -> {rhs}" for lhs, rhs in trivial_fds)
+        )
+
+    if lhs_extraneous:
+        violations.append(
+            "Some dependencies have extraneous attributes on the LHS: "
+            + "; ".join(f"{lhs} -> {rhs}" for lhs, rhs in lhs_extraneous)
+        )
+
+    if redundant_fds:
+        violations.append(
+            "Some dependencies are redundant: "
+            + "; ".join(f"{lhs} -> {rhs}" for lhs, rhs in redundant_fds)
+        )
+
+    lhs_groups = {}
+    for lhs, rhs in candidate_fds:
+        key = tuple(sorted(lhs))
+        lhs_groups.setdefault(key, set()).update(rhs)
+    is_compact = len(lhs_groups) == len(candidate_fds)
+
+    return {
+        "is_minimal_cover": len(violations) == 0,
+        "is_compact": is_compact,
+        "violations": violations,
+        "merged_form": [(set(lhs), set(rhs)) for lhs, rhs in lhs_groups.items()],
+    }
+
+
+
+def is_compact_minimal_cover(original_fds, candidate_fds, attributes=None) -> bool:
+    """Return True iff candidate_fds is a compact minimal cover of original_fds."""
+    result = check_minimal_cover(original_fds, candidate_fds, attributes=attributes)
+    return result["is_minimal_cover"] and result["is_compact"]
+
 def _attr_bitmask(attrs, attr_to_bit):
     """Helper to build a bitmask from an iterable of attribute names."""
     m = 0

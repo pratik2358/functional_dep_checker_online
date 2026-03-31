@@ -14,6 +14,8 @@ from utils import (
     group_fds,
     minimal_cover,
     project_dependency,
+    check_minimal_cover,
+    is_compact_minimal_cover,
 )
 from web_helpers import (
     format_candidate_keys,
@@ -64,13 +66,14 @@ with st.sidebar:
         st.error(str(exc))
 
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "Closure",
     "All closures",
     "Keys and prime attributes",
     "Minimal cover",
     "Projection",
     "Discover from relation",
+    "Check minimal cover",
 ])
 
 with tab1:
@@ -186,3 +189,44 @@ with tab6:
 st.markdown("---")
 st.markdown("### Run locally")
 st.code("pip install -r requirements.txt\nstreamlit run app.py")
+
+
+with tab7:
+    st.subheader("Check whether a given FD set is a minimal cover")
+    st.markdown("Enter the candidate cover to test against the original FD set from the sidebar.")
+    candidate_text = st.text_area(
+        "Candidate FD set",
+        value="A -> B,C\nB,C -> A,D\nC -> D",
+        height=220,
+        key="candidate_cover_text",
+    )
+    if st.button("Check candidate cover", use_container_width=True):
+        try:
+            candidate_fds = parse_fds(candidate_text)
+            result = check_minimal_cover(fds, candidate_fds, attributes=attributes)
+            compact_ok = is_compact_minimal_cover(fds, candidate_fds, attributes=attributes)
+
+            c1, c2 = st.columns(2)
+            with c1:
+                if result["is_minimal_cover"]:
+                    st.success("This FD set is a minimal cover of the original FD set.")
+                else:
+                    st.error("This FD set is not a minimal cover of the original FD set.")
+            with c2:
+                if compact_ok:
+                    st.success("It is also a compact minimal cover.")
+                elif result["is_minimal_cover"]:
+                    st.warning("It is a minimal cover, but not a compact one.")
+                else:
+                    st.info("Compactness is not satisfied for this candidate.")
+
+            if result["violations"]:
+                st.markdown("**Why it fails**")
+                for v in result["violations"]:
+                    st.write(f"- {v}")
+
+            st.markdown("**Merged form of the candidate**")
+            st.code(format_fds(result["merged_form"]))
+            st.dataframe(grouped_fds_table(result["merged_form"]), use_container_width=True)
+        except Exception as exc:
+            st.error(str(exc))
