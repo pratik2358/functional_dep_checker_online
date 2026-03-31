@@ -225,7 +225,7 @@ with tab7:
                 for v in result["violations"]:
                     st.write(f"- {v}")
 
-            st.markdown("**Merged form of the candidate**")
+            st.markdown("**Compact form of the candidate**")
             st.code(format_fds(result["merged_form"]))
             st.dataframe(grouped_fds_table(result["merged_form"]), use_container_width=True)
         except Exception as exc:
