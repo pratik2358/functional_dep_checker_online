@@ -155,7 +155,7 @@ with tab6:
     st.markdown("Upload a CSV or paste a Python dictionary that can be converted to a pandas DataFrame.")
     uploaded = st.file_uploader("Upload CSV", type=["csv"])
     df_text = st.text_area("Or paste a Python dictionary", value=DEFAULT_DISCOVER, height=220)
-    max_lhs = st.number_input("Maximum LHS size for discovery", min_value=0, value=0, help="0 means no explicit cap.")
+    max_lhs = st.number_input("Maximum LHS size for discovery (value 0 refers to no cap)", min_value=0, value=0, help="0 means no explicit cap.")
 
     df = None
     parse_error = None
