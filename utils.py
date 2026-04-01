@@ -246,7 +246,7 @@ def remove_superfluous_lhs(fds, p):
         minimal_fds.append((minimal_lhs, rhs))
     return minimal_fds
 
-def minimal_cover(fds) -> list:
+def minimal_cover(fds, p = 0.5) -> list:
     """Find the minimal cover of a set of FDs.
     -----------------------------------------
     attributes: a set of attributes

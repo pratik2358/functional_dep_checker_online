@@ -119,10 +119,10 @@ with tab3:
 
 with tab4:
     st.subheader("Minimal cover")
-    # randomization = st.slider("Randomization parameter p", min_value=0.0, max_value=1.0, value=0.0, step=0.1)
+    randomization = st.slider("Randomization parameter p", min_value=0.0, max_value=1.0, value=0.0, step=0.1)
     if st.button("Compute minimal cover", use_container_width=True):
         try:
-            result = minimal_cover(fds)
+            result = minimal_cover(fds, p=randomization)
             st.code(format_fds(result))
             st.dataframe(grouped_fds_table(result), use_container_width=True)
         except Exception as exc:
