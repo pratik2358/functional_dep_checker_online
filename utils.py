@@ -238,8 +238,13 @@ def remove_superfluous_lhs(fds, p):
                     minimal_lhs = set(subset)
                     min_sub = len(subset)
                     minimals.append(minimal_lhs)
-        if len(minimals)>1 and random.randint(0, 10) <= p*10:
-            minimal_lhs = set(random.choice(minimals))
+        rand = random.randint(0, 10)
+        if len(minimals)>1 and rand <= p*10:
+            weights = [random.randint(0,10) for i in range(len(minimals))]
+            weights = [w/sum(weights) for w in weights]
+            minimal_lhs = set(random.choices(minimals, weights = weights, k = 1)[0])
+        elif len(minimals)>1 and rand > p*10:
+            minimal_lhs = minimals[0]
         elif len(minimals)==1:
             minimal_lhs = minimals[0]
             
