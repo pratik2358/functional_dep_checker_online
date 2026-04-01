@@ -188,6 +188,7 @@ with tab6:
 
 st.markdown("---")
 st.markdown("### Run locally")
+st.markdown("Clone the repository and from terminal, inside the cloned repository, run:")
 st.code("pip install -r requirements.txt\nstreamlit run app.py")
 
 
